@@ -154,7 +154,17 @@ async function rpc(name, body) {
     const detail = await res.text().catch(() => '');
     throw new Error(`服务器返回 ${res.status}${detail ? `：${detail.slice(0, 120)}` : ''}`);
   }
-  return res.json();
+  return normalizeRpc(await res.json());
+}
+
+/** Postgres 返回的是 wait_seconds / created_at，统一成前端使用的驼峰。 */
+function normalizeRpc(out) {
+  if (!out || typeof out !== 'object') return out;
+  return {
+    ...out,
+    waitSeconds: out.wait_seconds ?? out.waitSeconds,
+    createdAt: out.created_at ?? out.createdAt,
+  };
 }
 
 const supabase = {
@@ -218,7 +228,7 @@ export const progress = {
 
 /** 把剩余秒数说成“X 天 Y 小时”。 */
 export function formatWait(seconds) {
-  const total = Math.max(0, Math.ceil(seconds));
+  const total = Math.max(0, Math.ceil(Number(seconds) || 0));
   const days = Math.floor(total / 86400);
   const hours = Math.floor((total % 86400) / 3600);
   const minutes = Math.ceil((total % 3600) / 60);
