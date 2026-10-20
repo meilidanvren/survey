@@ -4,6 +4,7 @@
  */
 export const bankB = {
   id: 'B',
+  version: 'B-v1',
   title: '问卷作答',
   intro: '请根据你平时的真实想法和做法作答，答案没有对错。',
 

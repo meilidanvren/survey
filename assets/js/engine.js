@@ -22,6 +22,9 @@ export class Quiz {
     this.bank = bank;
     this.container = container;
     this.answers = { ...(opts.answers || {}) };
+    // 逐题首次作答耗时（秒）：从该题所在页面显示起算，只记第一次选择
+    this.answerSeconds = { ...(opts.answerSeconds || {}) };
+    this.shownAt = {};
     this.pageSize = opts.pageSize || bank.pageSize || 8;
 
     this.pages = [];
@@ -34,6 +37,7 @@ export class Quiz {
     this.onChange = opts.onChange || (() => {});
     this.onPage = opts.onPage || (() => {});
     this.onComplete = opts.onComplete || (() => {});
+    this.onTiming = opts.onTiming || (() => {});
     this.done = false;
 
     this.container.addEventListener('change', (e) => this.handleChange(e));
@@ -69,6 +73,13 @@ export class Quiz {
     }
 
     this.clearMissing(qid);
+
+    if (this.answerSeconds[qid] === undefined) {
+      const startedAt = this.shownAt[qid] ?? Date.now();
+      this.answerSeconds[qid] = Math.round((Date.now() - startedAt) / 100) / 10;
+      this.onTiming(this.answerSeconds);
+    }
+
     this.updateMeta();
     this.onChange(this.answers);
   }
@@ -187,6 +198,11 @@ export class Quiz {
         <button type="button" class="btn btn-primary" data-act="next">${last ? '提交' : '下一页'}</button>
       </div>
     </div>`;
+
+    const seen = Date.now();
+    pageQs.forEach((q) => {
+      if (this.shownAt[q.id] === undefined) this.shownAt[q.id] = seen;
+    });
 
     this.updateMeta();
     if (!isMount) this.container.scrollIntoView({ behavior: 'auto', block: 'start' });

@@ -55,3 +55,26 @@ export function classify(bank, dims, answers) {
   if (typeof bank.classify !== 'function') return null;
   return bank.classify(dims, answers) ?? null;
 }
+
+/**
+ * 把作答值翻译成被试当时看到的文字。
+ * 数据库里只存选项序号/分值，题库一改序号含义就变了，所以提交时一并存文字。
+ */
+export function answerLabels(bank, answers) {
+  const out = {};
+  for (const q of bank.questions || []) {
+    const raw = answers?.[q.id];
+    if (raw === undefined || raw === null || raw === '') continue;
+
+    if (q.options) {
+      const idxs = Array.isArray(raw) ? raw : [raw];
+      out[q.id] = idxs
+        .map((i) => q.options[Number(i)]?.text ?? q.options[Number(i)]?.label ?? String(i))
+        .join(' / ');
+    } else {
+      const v = Number(raw);
+      out[q.id] = (bank.scale || []).find((s) => Number(s.value) === v)?.label ?? String(v);
+    }
+  }
+  return out;
+}

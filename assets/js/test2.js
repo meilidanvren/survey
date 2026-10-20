@@ -1,6 +1,7 @@
 import { CONFIG } from './config.js';
 import { bankC } from './bankC.js';
 import { Quiz, esc } from './engine.js';
+import { answerLabels } from './scoring.js';
 import { normalizeCode, isValidFormat } from './code.js';
 import { store, progress, driver, formatWait } from './storage.js';
 
@@ -22,6 +23,7 @@ function makeState() {
     code: '',
     input: '',
     answersC: {},
+    answerSecondsC: {},
     pageC: 0,
     startedAt: null,
     finishedAt: null,
@@ -164,9 +166,11 @@ function renderBankC() {
     bank: bankC,
     container: qs('#quiz'),
     answers: state.answersC,
+    answerSeconds: state.answerSecondsC,
     page: state.pageC,
     pageSize: CONFIG.pageSize,
     onChange: (answers) => { state.answersC = answers; save(); },
+    onTiming: (seconds) => { state.answerSecondsC = seconds; save(); },
     onPage: (page) => { state.pageC = page; save(); },
     onComplete: (answers) => {
       state.answersC = answers;
@@ -189,6 +193,9 @@ async function submitC() {
     startedAt: state.startedAt,
     finishedAt,
     answersC: state.answersC,
+    answerTextC: answerLabels(bankC, state.answersC),
+    answerSecondsC: state.answerSecondsC,
+    bankVersion: { C: bankC.version },
     meta: {
       ua: navigator.userAgent,
       screen: `${screen.width}x${screen.height}`,

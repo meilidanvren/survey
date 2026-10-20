@@ -12,6 +12,7 @@
  */
 export const bankA = {
   id: 'A',
+  version: 'A-v1',
   title: '人格测验',
   intro: '以下为流程测试用的示例题。请为每题选择一个你认为最合适的答案，不要查资料。',
 

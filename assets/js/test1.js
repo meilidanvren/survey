@@ -2,7 +2,7 @@ import { CONFIG } from './config.js';
 import { bankA } from './bankA.js';
 import { bankB } from './bankB.js';
 import { Quiz, esc } from './engine.js';
-import { scoreBank, classify } from './scoring.js';
+import { scoreBank, classify, answerLabels } from './scoring.js';
 import { generateUniqueCode } from './code.js';
 import { store, progress, driver } from './storage.js';
 
@@ -23,11 +23,13 @@ function makeState() {
     startedAt: null,
     finishedAt: null,
     answersA: {},
+    answerSecondsA: {},
     pageA: 0,
     dims: null,
     type: null,
     video: null,
     answersB: {},
+    answerSecondsB: {},
     pageB: 0,
     timings: {},
     submissionId: null,
@@ -93,9 +95,11 @@ function renderBankA() {
     bank: bankA,
     container: qs('#quiz'),
     answers: state.answersA,
+    answerSeconds: state.answerSecondsA,
     page: state.pageA,
     pageSize: CONFIG.pageSize,
     onChange: (answers) => { state.answersA = answers; save(); },
+    onTiming: (seconds) => { state.answerSecondsA = seconds; save(); },
     onPage: (page) => { state.pageA = page; save(); },
     onComplete: (answers) => {
       state.answersA = answers;
@@ -231,9 +235,11 @@ function renderBankB() {
     bank: bankB,
     container: qs('#quiz'),
     answers: state.answersB,
+    answerSeconds: state.answerSecondsB,
     page: state.pageB,
     pageSize: CONFIG.pageSize,
     onChange: (answers) => { state.answersB = answers; save(); },
+    onTiming: (seconds) => { state.answerSecondsB = seconds; save(); },
     onPage: (page) => { state.pageB = page; save(); },
     onComplete: (answers) => {
       state.answersB = answers;
@@ -252,11 +258,16 @@ function buildRecord() {
     createdAt: state.startedAt || nowISO(),
     finishedAt: state.finishedAt || nowISO(),
     answersA: state.answersA,
+    answerTextA: answerLabels(bankA, state.answersA),
+    answerSecondsA: state.answerSecondsA,
     dims: state.dims,
     type: state.type,
     typeName: info?.name || state.type,
     video: state.video,
     answersB: state.answersB,
+    answerTextB: answerLabels(bankB, state.answersB),
+    answerSecondsB: state.answerSecondsB,
+    bankVersion: { A: bankA.version, B: bankB.version },
     timings: state.timings,
     meta: {
       ua: navigator.userAgent,

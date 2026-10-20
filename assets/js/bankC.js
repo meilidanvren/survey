@@ -3,6 +3,7 @@
  */
 export const bankC = {
   id: 'C',
+  version: 'C-v1',
   title: '后续问卷',
   intro: '这是最后一次作答，请根据你当前的真实情况选择。',
 
