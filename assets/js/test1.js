@@ -5,7 +5,7 @@ import { Quiz, esc } from './engine.js';
 import {
   answerLabels, scoreBFI, scoreCRT, scoreCSSTNFQ,
   scoreSTAI6, scoreCRTParallel, scoreManipulation,
-  codeDemo, scoreAttention, assignGroup, parseAnswerNumber, classifyBigFive,
+  codeDemo, scoreAttention, assignVideo, parseAnswerNumber, classifyBigFive,
 } from './scoring.js';
 import { generateUniqueCode } from './code.js';
 import { store, progress, driver } from './storage.js';
@@ -39,6 +39,9 @@ function makeState() {
     scores: null,
     attention: null,
     group: null,
+    arm: null,
+    profile: null,
+    eligible: null,
     video: null,
     answersB: {},
     answerSecondsB: {},
@@ -117,6 +120,12 @@ function renderSurvey() {
       state.answers = answers;
       state.timings.surveyFinishedAt = nowISO();
       scoreAndAssign();
+      if (state.eligible === false) {
+        state.timings.surveyFinishedAt = nowISO();
+        save();
+        finishTest();
+        return;
+      }
       state.timings.videoStartedAt = nowISO();
       state.step = 'video';
       save();
@@ -138,9 +147,19 @@ function maybeAssignGroup(answers) {
 
   const { dims } = scoreBFI(answers);
   state.big5 = classifyBigFive(dims);
-  state.group = assignGroup(dims);
+  applyAssignment(dims);
   state.groupDims = dims;
   state.groupAssignedAt = nowISO();
+}
+
+/** 按《匹配规则》定画像、随机分组、定视频；都不满足则不入组。 */
+function applyAssignment(dims) {
+  const res = assignVideo(dims);
+  if (!res) return;
+  state.profile = res.profile;
+  state.arm = res.arm;
+  state.group = res.group;
+  state.eligible = res.eligible;
 }
 
 function scoreAndAssign() {
@@ -155,8 +174,8 @@ function scoreAndAssign() {
   };
   state.attention = scoreAttention(bankA, a);
   if (!state.big5) state.big5 = classifyBigFive(bfi.dims);
-  if (!state.group) {
-    state.group = assignGroup(bfi.dims);
+  if (state.eligible === null || state.eligible === undefined) {
+    applyAssignment(bfi.dims);
     state.groupDims = bfi.dims;
     state.groupAssignedAt = nowISO();
   }
@@ -288,6 +307,9 @@ function buildRecord() {
     createdAt: state.startedAt || nowISO(),
     finishedAt: state.finishedAt || nowISO(),
     group: state.group,
+    arm: state.arm || null,
+    eligible: state.eligible === null || state.eligible === undefined ? null : state.eligible,
+    profile: state.profile || null,
     big5: state.big5 || null,
     groupDims: state.groupDims || null,
     groupAssignedAt: state.groupAssignedAt || null,
@@ -391,6 +413,24 @@ function renderCode() {
       state.saveError = '';
       save();
       finishTest();
+    });
+    return;
+  }
+
+  if (state.eligible === false) {
+    app.innerHTML = `
+  <section class="card center">
+    <div class="done-mark">✓</div>
+    <h2>本次参与结束，感谢你</h2>
+    <p class="muted">你的作答已匿名保存（编号 <b class="mono">${esc(state.code)}</b>），仅用于学术分析。<br>
+      本次不需要再参加后续环节，可以关闭本页面了。</p>
+    <p class="hint">如有疑问，请联系主试。</p>
+    <button class="btn btn-ghost" data-act="leave">完成</button>
+  </section>`;
+
+    qs('[data-act="leave"]').addEventListener('click', () => {
+      progress.clear(KEY);
+      location.href = './index.html';
     });
     return;
   }

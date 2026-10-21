@@ -266,13 +266,62 @@ export function classifyBigFive(dims, cutoff = 3.0) {
 }
 
 /**
- * 研究二分流：高神经质 → V-A；不高但低尽责 → V-B；其余随机 V-C / V-N（中性视频）。
- * 临界分是当场分流用的预设值，可改；真正的「上下 27%」等样本收齐后再复核。
+ * 研究二入组与视频分派，规则来源《研究二_人格与三组匹配规则_精简版》：
+ *   阈值 N≥3.375（N 的第 73 百分位）、C≤3.222（C 的第 27 百分位），
+ *   由研究一模拟数据（328 人）实测算出，正式施测换成本研究定标样本的分位。
+ *   顺序：先随机等分三组，再在实验组内按画像分派 V-A / V-B。
  */
-export function assignGroup(dims, rand = Math.random) {
-  if (dims?.N >= 3.5) return 'V-A';
-  if (dims?.C <= 3.0) return 'V-B';
-  return rand() < 0.5 ? 'V-C' : 'V-N';
+export const GROUP_CUTS = { nHigh: 3.375, cLow: 3.222, tieGap: 0.06 };
+
+/** 画像判定：只高 N / 只低 C / 两者兼具 / 都不满足（不入组）。 */
+export function personalityProfile(dims) {
+  const n = Number(dims?.N);
+  const c = Number(dims?.C);
+  if (Number.isNaN(n) || Number.isNaN(c)) return null;
+
+  const nHigh = n >= GROUP_CUTS.nHigh;
+  const cLow = c <= GROUP_CUTS.cLow;
+
+  let code = 'none';
+  if (nHigh && cLow) code = 'both';
+  else if (nHigh) code = 'N_only';
+  else if (cLow) code = 'C_only';
+
+  return {
+    code,
+    label: {
+      both: '两者兼具', N_only: '只高 N', C_only: '只低 C', none: '都不满足',
+    }[code],
+    nHigh,
+    cLow,
+    exN: Math.round((n - GROUP_CUTS.nHigh) * 1000) / 1000,
+    exC: Math.round((GROUP_CUTS.cLow - c) * 1000) / 1000,
+  };
+}
+
+/**
+ * 当场分派：先 1:1:1 随机到实验组 / 通用组 / 对照组；
+ * 实验组内按画像定 V-A 或 V-B（兼具者比超出阈值的幅度，相差 ≤0.06 给 V-A）。
+ * 画像为「都不满足」时不入组，group 返回 null。
+ */
+export function assignVideo(dims, rand = Math.random) {
+  const profile = personalityProfile(dims);
+  if (!profile) return null;
+  if (profile.code === 'none') {
+    return { profile, arm: null, group: null, eligible: false };
+  }
+
+  const r = rand();
+  const arm = r < 1 / 3 ? 'exp' : r < 2 / 3 ? 'general' : 'control';
+
+  let group;
+  if (arm === 'general') group = 'V-C';
+  else if (arm === 'control') group = 'V-N';
+  else if (profile.code === 'N_only') group = 'V-A';
+  else if (profile.code === 'C_only') group = 'V-B';
+  else group = profile.exC - profile.exN > GROUP_CUTS.tieGap ? 'V-B' : 'V-A';
+
+  return { profile, arm, group, eligible: true };
 }
 
 /* ---------------- 研究二（视频后） ---------------- */

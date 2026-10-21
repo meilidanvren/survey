@@ -120,6 +120,14 @@ function renderStats() {
     <div class="stat"><b style="font-size:13px;line-height:1.5">${esc(typeLine)}</b><span>分组分布</span></div>`;
 }
 
+const ARM_NAME = { exp: '实验组', general: '通用组', control: '对照组' };
+
+function groupCell(t1) {
+  if (t1.eligible === false) return '未入组';
+  if (!t1.group) return '—';
+  return t1.arm ? `${t1.group}（${ARM_NAME[t1.arm] || t1.arm}）` : t1.group;
+}
+
 function big5Cell(t1) {
   const dims = t1.scores?.bfi || {};
   const keys = ['E', 'A', 'C', 'N', 'O'];
@@ -151,7 +159,8 @@ function renderTable() {
     const answerCell = `A${aN} / B${bN}${cN ? ` / C${cN}` : ''}`;
     return `<tr>
       <td class="mono">${esc(r.code)}${r.orphan ? ' <span class="badge wait">孤立</span>' : ''}</td>
-      <td>${esc(t1.group || '—')}</td>
+      <td>${esc(groupCell(t1))}</td>
+      <td>${esc(t1.profile?.label || '—')}</td>
       <td>${esc(big5Cell(t1))}</td>
       <td>${esc(fmtTime(r.createdAt))}</td>
       <td>${hasT2 ? '<span class="badge ok">已完成</span>' : '<span class="badge wait">未完成</span>'}</td>
@@ -161,7 +170,7 @@ function renderTable() {
   }).join('');
 
   wrap.innerHTML = `<table class="data">
-    <thead><tr><th>编号</th><th>分组</th><th>大五判定</th><th>一测存入时间</th><th>二测</th><th>视频</th><th>已存题数</th></tr></thead>
+    <thead><tr><th>编号</th><th>分组</th><th>画像</th><th>大五判定</th><th>一测存入时间</th><th>二测</th><th>视频</th><th>已存题数</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
 }
