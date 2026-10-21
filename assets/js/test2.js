@@ -104,6 +104,7 @@ function gateMessage(res) {
       ? '未找到该编号。请确认使用的是完成一测的同一台设备、同一个浏览器。'
       : '未找到该编号，请确认是否输入正确。';
   }
+  if (res.reason === 'not_eligible') return '这个编号在第一次作答后未进入后续环节，不需要参加这次问卷。如有疑问请联系主试。';
   if (res.reason === 'already_done') return '该编号已经完成过二测，不需要重复作答。';
   if (res.reason === 'invalid_code') return '编号格式不正确：应为 16 位字母或数字（不含 I、O、0、1）。';
   if (res.reason === 'too_early') {

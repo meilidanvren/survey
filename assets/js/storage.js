@@ -81,6 +81,7 @@ const local = {
     if (!participant) return { ok: false, reason: 'not_found' };
 
     const record = read(KEYS.records, {})[code];
+    if (record?.test1?.eligible === false) return { ok: false, reason: 'not_eligible' };
     if (participant.test2At || record?.test2) return { ok: false, reason: 'already_done' };
 
     return gateResult(participant.createdAt);
