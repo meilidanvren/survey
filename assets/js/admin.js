@@ -1,7 +1,5 @@
 import { CONFIG } from './config.js';
-import { bankA } from './bankA.js';
-import { bankB } from './bankB.js';
-import { bankC } from './bankC.js';
+import { bankA, bankT2 } from './surveyA.js';
 import { esc } from './engine.js';
 import { store, progress, driver } from './storage.js';
 
@@ -160,8 +158,13 @@ function answerText(bank, qid, value) {
   if (value === undefined || value === null || value === '') return '';
   const q = bank.questions.find((x) => x.id === qid);
   if (q?.options) {
-    const idx = Array.isArray(value) ? value : [value];
-    return idx.map((i) => q.options[Number(i)]?.text ?? i).join(' | ');
+    const vals = Array.isArray(value) ? value : [value];
+    return vals
+      .map((v) => {
+        const opt = q.options.find((o, i) => Number(o.value ?? i + 1) === Number(v));
+        return opt?.text ?? v;
+      })
+      .join(' | ');
   }
   return Array.isArray(value) ? value.join('|') : value;
 }
@@ -173,37 +176,40 @@ function csvCell(value) {
 
 function buildCSV() {
   const qA = bankA.questions.map((q) => q.id);
-  const qB = bankB.questions.map((q) => q.id);
-  const qC = bankC.questions.map((q) => q.id);
+  const qT2 = bankT2.questions.map((q) => q.id);
 
   const header = [
-    '编号', '人格类型', '一测存入时间', '一测开始', '一测结束', '一测用时(秒)',
+    '编号', '分组', '一测存入时间', '一测开始', '一测结束', '一测用时(秒)',
+    'BFI_E', 'BFI_A', 'BFI_C', 'BFI_N', 'BFI_O', 'CRT', 'STAI', 'CSSTNFQ_T1', '注意力通过',
     '视频状态', '视频观看(秒)',
-    ...qA.map((id) => `A_${id}`),
-    ...qB.map((id) => `B_${id}`),
-    '二测开始', '二测结束', '二测用时(秒)',
-    ...qC.map((id) => `C_${id}`),
+    ...qA.map((id) => `一测_${id}`),
+    '二测开始', '二测结束', '二测用时(秒)', 'CSSTNFQ_T3',
+    ...qT2.map((id) => `二测_${id}`),
   ];
 
   const lines = records.map((r) => {
     const t1 = r.test1 || {};
     const t2 = r.test2 || {};
+    const s = t1.scores || {};
     const video = t1.video?.ended ? '看完' : (t1.video?.skipped ? '跳过' : '未看完');
     return [
       r.code,
-      t1.typeName || t1.type || '',
+      t1.group || '',
       fmtTime(r.createdAt),
       fmtTime(t1.startedAt),
       fmtTime(t1.finishedAt),
       seconds(t1.startedAt, t1.finishedAt),
+      s.bfi?.E ?? '', s.bfi?.A ?? '', s.bfi?.C ?? '', s.bfi?.N ?? '', s.bfi?.O ?? '',
+      s.crt?.total ?? '', s.stai?.total ?? '', s.csstnfqT1?.total ?? '',
+      t1.attention?.passed ?? '',
       video,
       t1.video?.watched ? Math.round(t1.video.watched) : '',
-      ...qA.map((id) => answerText(bankA, id, t1.answersA?.[id])),
-      ...qB.map((id) => answerText(bankB, id, t1.answersB?.[id])),
+      ...qA.map((id) => answerText(bankA, id, t1.answers?.[id])),
       fmtTime(t2.startedAt),
       fmtTime(t2.finishedAt),
       seconds(t2.startedAt, t2.finishedAt),
-      ...qC.map((id) => answerText(bankC, id, t2.answersC?.[id])),
+      t2.scores?.csstnfqT3?.total ?? '',
+      ...qT2.map((id) => answerText(bankT2, id, t2.answers?.[id])),
     ].map(csvCell).join(',');
   });
 

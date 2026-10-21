@@ -1,7 +1,7 @@
 import { CONFIG } from './config.js';
-import { bankC } from './bankC.js';
+import { bankT3 } from './surveyA.js';
 import { Quiz, esc } from './engine.js';
-import { answerLabels } from './scoring.js';
+import { answerLabels, scoreCSSTNFQ } from './scoring.js';
 import { normalizeCode, isValidFormat } from './code.js';
 import { store, progress, driver, formatWait } from './storage.js';
 
@@ -156,19 +156,17 @@ async function verify(raw) {
 function renderBankC() {
   app.innerHTML = `
   <section class="card">
-    <p class="eyebrow">二测 · 编号 ${esc(state.code)}</p>
-    <h2>${esc(bankC.title)}</h2>
-    <p class="muted">${esc(bankC.intro)}</p>
+    <p class="eyebrow">第二次参与 · 编号 ${esc(state.code)}</p>
     <div id="quiz"></div>
   </section>`;
 
   new Quiz({
-    bank: bankC,
+    bank: bankT3,
     container: qs('#quiz'),
     answers: state.answersC,
     answerSeconds: state.answerSecondsC,
     page: state.pageC,
-    pageSize: CONFIG.pageSize,
+    pageSize: bankT3.pageSize || 8,
     onChange: (answers) => { state.answersC = answers; save(); },
     onTiming: (seconds) => { state.answerSecondsC = seconds; save(); },
     onPage: (page) => { state.pageC = page; save(); },
@@ -192,10 +190,11 @@ async function submitC() {
     code: state.code,
     startedAt: state.startedAt,
     finishedAt,
-    answersC: state.answersC,
-    answerTextC: answerLabels(bankC, state.answersC),
-    answerSecondsC: state.answerSecondsC,
-    bankVersion: { C: bankC.version },
+    answers: state.answersC,
+    answerText: answerLabels(bankT3, state.answersC),
+    answerSeconds: state.answerSecondsC,
+    scores: { csstnfqT3: scoreCSSTNFQ(state.answersC) },
+    bankVersion: bankT3.version,
     meta: {
       ua: navigator.userAgent,
       screen: `${screen.width}x${screen.height}`,

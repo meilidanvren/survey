@@ -1,8 +1,10 @@
 import { CONFIG } from './config.js';
-import { bankA } from './bankA.js';
-import { bankB } from './bankB.js';
+import { bankA, bankT2 } from './surveyA.js';
 import { Quiz, esc } from './engine.js';
-import { scoreBank, classify, answerLabels } from './scoring.js';
+import {
+  answerLabels, scoreBFI, scoreCRT, scoreSTAI, scoreCSSTNFQ,
+  codeDemo, scoreAttention, assignGroup, parseAnswerNumber,
+} from './scoring.js';
 import { generateUniqueCode } from './code.js';
 import { store, progress, driver } from './storage.js';
 
@@ -11,6 +13,12 @@ const KEY = 'test1';
 const qs = (sel, root = app) => root.querySelector(sel);
 const nowISO = () => new Date().toISOString();
 const delayDays = Number(CONFIG.flow.test2DelayDays) || 0;
+
+const VIDEO_BY_GROUP = {
+  'V-A': { title: '请观看下面这段视频', src: 'assets/videos/video-1.mp4' },
+  'V-B': { title: '请观看下面这段视频', src: 'assets/videos/video-2.mp4' },
+  'V-C': { title: '请观看下面这段视频', src: 'assets/videos/video-3.mp4' },
+};
 
 function makeId() {
   return globalThis.crypto?.randomUUID?.()
@@ -22,15 +30,16 @@ function makeState() {
     step: 'intro',
     startedAt: null,
     finishedAt: null,
-    answersA: {},
-    answerSecondsA: {},
-    pageA: 0,
-    dims: null,
-    type: null,
+    answers: {},
+    answerSeconds: {},
+    page: 0,
+    scores: null,
+    attention: null,
+    group: null,
     video: null,
-    answersB: {},
-    answerSecondsB: {},
-    pageB: 0,
+    answersT2: {},
+    answerSecondsT2: {},
+    pageT2: 0,
     timings: {},
     submissionId: null,
     code: null,
@@ -45,10 +54,9 @@ const save = () => progress.save(KEY, state);
 function render() {
   window.scrollTo(0, 0);
   switch (state.step) {
-    case 'bankA': return renderBankA();
-    case 'result': return renderResult();
+    case 'survey': return renderSurvey();
     case 'video': return renderVideo();
-    case 'bankB': return renderBankB();
+    case 't2': return renderT2();
     case 'code': return renderCode();
     default: return renderIntro();
   }
@@ -59,14 +67,14 @@ function render() {
 function renderIntro() {
   app.innerHTML = `
   <section class="card hero">
-    <p class="eyebrow">一测 · 第一次参与</p>
+    <p class="eyebrow">第一次参与</p>
     <h1>${esc(CONFIG.studyTitle)}</h1>
     <p class="lead">${esc(CONFIG.studyIntro)}</p>
     <ul class="facts">
-      <li><b>第一部分</b><span>人格测验，约 3 分钟</span></li>
-      <li><b>第二部分</b><span>观看一段短视频</span></li>
-      <li><b>第三部分</b><span>问卷作答，约 4 分钟</span></li>
-      <li><b>结束后</b><span>生成 16 位编号，${delayDays > 0 ? `${delayDays} 天后可参加二测` : '可直接参加二测'}</span></li>
+      <li><b>这一部分</b><span>几组问卷，约 12 分钟</span></li>
+      <li><b>接着</b><span>观看一段短视频</span></li>
+      <li><b>然后</b><span>再填一份问卷，约 4 分钟</span></li>
+      <li><b>结束后</b><span>生成 16 位编号，${delayDays > 0 ? `${delayDays} 天后凭编号参加第二次` : '可随时凭编号参加第二次'}</span></li>
     </ul>
     <button class="btn btn-primary btn-block" data-act="start">开始作答</button>
     <p class="hint">作答过程请尽量一次完成；如果中途刷新或关闭页面，重新打开会接着上次的进度。</p>
@@ -74,76 +82,69 @@ function renderIntro() {
 
   qs('[data-act="start"]').addEventListener('click', () => {
     state.startedAt = state.startedAt || nowISO();
-    state.step = 'bankA';
+    state.step = 'survey';
     save();
     render();
   });
 }
 
-/* ---------------- 步骤 1：人格测验 ---------------- */
+/* ---------------- 步骤 1：五段问卷（只显示指导语） ---------------- */
 
-function renderBankA() {
+function renderSurvey() {
   app.innerHTML = `
   <section class="card">
-    <p class="eyebrow">第一部分</p>
-    <h2>${esc(bankA.title)}</h2>
-    <p class="muted">${esc(bankA.intro)}</p>
     <div id="quiz"></div>
   </section>`;
 
   new Quiz({
     bank: bankA,
     container: qs('#quiz'),
-    answers: state.answersA,
-    answerSeconds: state.answerSecondsA,
-    page: state.pageA,
-    pageSize: CONFIG.pageSize,
-    onChange: (answers) => { state.answersA = answers; save(); },
-    onTiming: (seconds) => { state.answerSecondsA = seconds; save(); },
-    onPage: (page) => { state.pageA = page; save(); },
+    answers: state.answers,
+    answerSeconds: state.answerSeconds,
+    page: state.page,
+    pageSize: bankA.pageSize,
+    onChange: (answers) => { state.answers = answers; save(); },
+    onTiming: (seconds) => { state.answerSeconds = seconds; save(); },
+    onPage: (page) => { state.page = page; save(); },
     onComplete: (answers) => {
-      state.answersA = answers;
-      state.dims = scoreBank(bankA, answers);
-      state.type = classify(bankA, state.dims, answers);
-      state.timings.bankAFinishedAt = nowISO();
-      state.step = 'result';
+      state.answers = answers;
+      state.timings.surveyFinishedAt = nowISO();
+      scoreAndAssign();
+      const video = VIDEO_BY_GROUP[state.group];
+      if (video) {
+        state.timings.videoStartedAt = nowISO();
+        state.step = 'video';
+      } else {
+        state.step = 't2';
+      }
       save();
       render();
     },
   });
 }
 
-/* ---------------- 步骤 2：结果（不展示人格类型） ---------------- */
-
-function renderResult() {
-  const info = bankA.types?.[state.type];
-  const show = CONFIG.flow.showResultToParticipant && Boolean(info);
-
-  app.innerHTML = `
-  <section class="card">
-    <p class="eyebrow">第一部分完成</p>
-    <h2>${show ? `你的人格类型：${esc(info.name)}` : '第一部分已完成'}</h2>
-    ${show && info.desc ? `<p class="lead">${esc(info.desc)}</p>` : '<p class="lead">接下来请观看一段短视频，然后继续完成后面的问卷。</p>'}
-    <p class="muted">请找一个安静的环境，独自观看，看完后继续作答。</p>
-    <button class="btn btn-primary btn-block" data-act="next">继续</button>
-  </section>`;
-
-  qs('[data-act="next"]').addEventListener('click', () => {
-    state.timings.videoStartedAt = state.timings.videoStartedAt || nowISO();
-    state.step = 'video';
-    save();
-    render();
-  });
+function scoreAndAssign() {
+  const a = state.answers;
+  const bfi = scoreBFI(a);
+  state.scores = {
+    bfi: bfi.dims,
+    demo: codeDemo(a),
+    crt: scoreCRT(a),
+    stai: scoreSTAI(a),
+    csstnfqT1: scoreCSSTNFQ(a),
+  };
+  state.attention = scoreAttention(bankA, a);
+  state.group = state.group || assignGroup(bfi.dims);
 }
 
-/* ---------------- 步骤 3：视频 ---------------- */
+/* ---------------- 步骤 2：视频（对照组跳过） ---------------- */
 
 function renderVideo() {
-  const conf = bankA.videos?.[state.type] || null;
+  const conf = VIDEO_BY_GROUP[state.group] || null;
 
-  if (!state.video || state.video.type !== state.type) {
+  if (!state.video) {
     state.video = {
-      type: state.type,
+      group: state.group,
       src: conf?.src || '',
       title: conf?.title || '',
       ended: false,
@@ -159,7 +160,6 @@ function renderVideo() {
 
   app.innerHTML = `
   <section class="card">
-    <p class="eyebrow">第二部分</p>
     <h2>${esc(conf?.title || '请观看下面这段视频')}</h2>
     <p class="muted">请完整观看视频，播放结束后再点击下面的按钮。</p>
     ${v.src
@@ -174,7 +174,7 @@ function renderVideo() {
 
   const nextBtn = qs('[data-act="afterVideo"]');
   nextBtn.addEventListener('click', () => {
-    state.step = 'bankB';
+    state.step = 't2';
     save();
     render();
   });
@@ -220,54 +220,55 @@ function handleVideoError() {
   }
 }
 
-/* ---------------- 步骤 4：第二阶段问卷 ---------------- */
+/* ---------------- 步骤 3：视频后再填一份（T2） ---------------- */
 
-function renderBankB() {
+function renderT2() {
   app.innerHTML = `
   <section class="card">
-    <p class="eyebrow">第三部分</p>
-    <h2>${esc(bankB.title)}</h2>
-    <p class="muted">${esc(bankB.intro)}</p>
     <div id="quiz"></div>
   </section>`;
 
   new Quiz({
-    bank: bankB,
+    bank: bankT2,
     container: qs('#quiz'),
-    answers: state.answersB,
-    answerSeconds: state.answerSecondsB,
-    page: state.pageB,
-    pageSize: CONFIG.pageSize,
-    onChange: (answers) => { state.answersB = answers; save(); },
-    onTiming: (seconds) => { state.answerSecondsB = seconds; save(); },
-    onPage: (page) => { state.pageB = page; save(); },
+    answers: state.answersT2,
+    answerSeconds: state.answerSecondsT2,
+    page: state.pageT2,
+    pageSize: bankT2.pageSize || 8,
+    onChange: (answers) => { state.answersT2 = answers; save(); },
+    onTiming: (seconds) => { state.answerSecondsT2 = seconds; save(); },
+    onPage: (page) => { state.pageT2 = page; save(); },
     onComplete: (answers) => {
-      state.answersB = answers;
-      state.timings.bankBFinishedAt = nowISO();
+      state.answersT2 = answers;
+      state.scores.csstnfqT2 = scoreCSSTNFQ(answers);
+      state.timings.t2FinishedAt = nowISO();
       save();
       finishTest();
     },
   });
 }
 
+/* ---------------- 提交 ---------------- */
+
 function buildRecord() {
-  const info = bankA.types?.[state.type];
   return {
     submissionId: state.submissionId,
     code: state.code,
     createdAt: state.startedAt || nowISO(),
     finishedAt: state.finishedAt || nowISO(),
-    answersA: state.answersA,
-    answerTextA: answerLabels(bankA, state.answersA),
-    answerSecondsA: state.answerSecondsA,
-    dims: state.dims,
-    type: state.type,
-    typeName: info?.name || state.type,
+    group: state.group,
+    answers: state.answers,
+    answerText: answerLabels(bankA, state.answers),
+    answerSeconds: state.answerSeconds,
+    answersT2: state.answersT2,
+    answerTextT2: answerLabels(bankT2, state.answersT2),
+    answerSecondsT2: state.answerSecondsT2,
+    scores: state.scores,
+    attention: state.attention,
+    ageInput: state.answers?.D2 ?? null,
+    age: parseAnswerNumber(state.answers?.D2),
     video: state.video,
-    answersB: state.answersB,
-    answerTextB: answerLabels(bankB, state.answersB),
-    answerSecondsB: state.answerSecondsB,
-    bankVersion: { A: bankA.version, B: bankB.version },
+    bankVersion: bankA.version,
     timings: state.timings,
     meta: {
       ua: navigator.userAgent,
@@ -335,7 +336,7 @@ async function finishTest() {
   render();
 }
 
-/* ---------------- 步骤 5：编号 ---------------- */
+/* ---------------- 步骤 4：编号 ---------------- */
 
 function renderCode() {
   const sameDevice = driver === 'local';
@@ -343,7 +344,7 @@ function renderCode() {
   if (!state.saved) {
     app.innerHTML = `
     <section class="card">
-      <p class="eyebrow">一测完成</p>
+      <p class="eyebrow">已完成</p>
       <h2>正在保存编号</h2>
       <p class="muted">你的作答已经完成，正在把编号和作答写入服务器，请不要关闭页面。</p>
       ${state.saveError ? `<div class="alert alert-danger">${esc(state.saveError)}</div>` : '<div class="alert">正在保存，请稍候…</div>'}
@@ -361,19 +362,19 @@ function renderCode() {
 
   app.innerHTML = `
   <section class="card">
-    <p class="eyebrow">一测完成</p>
+    <p class="eyebrow">已完成</p>
     <h2>请保存你的专属编号</h2>
-    <p class="muted">这个 16 位编号是参加二测的唯一凭证，请立即截图或复制保存。本次作答已一并保存。</p>
+    <p class="muted">这个 16 位编号是参加下一次问卷的唯一凭证，请立即截图或复制保存。本次作答已一并保存。</p>
     <div class="code-box"><span id="my-code">${esc(state.code)}</span></div>
     <div class="row">
       <button class="btn btn-ghost" data-act="copy">复制编号</button>
-      <a class="btn btn-primary" href="./test2.html?code=${encodeURIComponent(state.code)}">前往二测</a>
+      <a class="btn btn-primary" href="./test2.html?code=${encodeURIComponent(state.code)}">前往第二次问卷</a>
     </div>
     <p class="hint">
-      ${sameDevice ? '当前是本机存储模式，二测需要在同一台设备的同一个浏览器里完成。' : ''}
+      ${sameDevice ? '当前是本机存储模式，第二次问卷需要在同一台设备的同一个浏览器里完成。' : ''}
       ${delayDays > 0
-        ? `二测需要在一测完成 ${delayDays} 天后才能进入，到时候凭这个编号参加。`
-        : '二测随时可以凭这个编号参加。'}
+        ? `第二次问卷需要在此次完成 ${delayDays} 天后才能进入，到时候凭这个编号参加。`
+        : '第二次问卷随时可以凭这个编号参加。'}
     </p>
     <p class="hint center"><button type="button" class="linkish" data-act="restart">我是下一位被试，重新开始</button></p>
   </section>`;

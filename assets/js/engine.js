@@ -49,7 +49,8 @@ export class Quiz {
   isAnswered(q) {
     const a = this.answers[q.id];
     if (q.multiple) return Array.isArray(a) && a.length > 0;
-    return a !== undefined && a !== null && a !== '';
+    if (typeof a === 'string') return a.trim() !== '';
+    return a !== undefined && a !== null;
   }
 
   answeredCount() {
@@ -68,6 +69,8 @@ export class Quiz {
       const vals = [...this.container.querySelectorAll(`input[data-qid="${qid}"]:checked`)]
         .map((el) => Number(el.value));
       this.answers[qid] = vals;
+    } else if (q.type === 'text') {
+      this.answers[qid] = input.value.trim();
     } else {
       this.answers[qid] = Number(input.value);
     }
@@ -154,18 +157,31 @@ export class Quiz {
 
   renderQuestion(q, indexOnPage) {
     const num = this.page * this.pageSize + indexOnPage + 1;
+    const cur = this.answers[q.id];
+    const note = q.note ? `<p class="q-intro">${esc(q.note)}</p>` : '';
+    const legend = `<legend><span class="q-num">${num}.</span>${esc(q.text)}</legend>`;
+
+    if (q.type === 'text') {
+      const val = typeof cur === 'string' ? cur : '';
+      return `<fieldset class="q" data-qid="${esc(q.id)}">
+        ${note}
+        ${legend}
+        <input class="text-answer" type="text" data-qid="${esc(q.id)}" value="${esc(val)}"
+          placeholder="${esc(q.placeholder || '在此填写答案')}" autocomplete="off">
+      </fieldset>`;
+    }
+
     const opts = q.options
-      ? q.options.map((o, i) => ({ value: i, label: o.text ?? o.label ?? String(o) }))
+      ? q.options.map((o, i) => ({ value: o.value ?? i + 1, label: o.text ?? o.label ?? String(o) }))
       : (this.bank.scale || []).map((o) => ({ value: o.value, label: o.label }));
 
-    const cur = this.answers[q.id];
     const isMulti = !!q.multiple;
     const name = `q_${q.id}`;
 
     const items = opts.map((o) => {
       const checked = isMulti
-        ? Array.isArray(cur) && cur.includes(o.value)
-        : cur === o.value;
+        ? Array.isArray(cur) && cur.map(Number).includes(Number(o.value))
+        : Number(cur) === Number(o.value);
       return `<label class="opt">
         <input type="${isMulti ? 'checkbox' : 'radio'}" name="${esc(name)}" value="${o.value}"
           data-qid="${esc(q.id)}" ${checked ? 'checked' : ''}>
@@ -174,8 +190,9 @@ export class Quiz {
     }).join('');
 
     return `<fieldset class="q" data-qid="${esc(q.id)}">
+      ${note}
       <legend><span class="q-num">${num}.</span>${esc(q.text)}${isMulti ? '<span class="q-tag">多选</span>' : ''}</legend>
-      <div class="opts">${items}</div>
+      <div class="opts ${opts.length > 5 ? 'opts-long' : ''}">${items}</div>
     </fieldset>`;
   }
 
