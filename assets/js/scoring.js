@@ -240,7 +240,33 @@ export function scoreAttention(bank, answers) {
 }
 
 /**
- * 研究二分流：高神经质 → V-A；不高但低尽责 → V-B；其余随机 V-C / 无干预对照。
+ * 大五人格判定：五维各按理论中点 3.0 划高/低，并给出得分最高的主导维度。
+ * 只用于描述与后台查看，不影响分流（分流另用 3.5 / 3.0 的操作性临界值）。
+ */
+export const BIG5_NAMES = { E: '外向性', A: '宜人性', C: '尽责性', N: '神经质', O: '开放性' };
+
+export function classifyBigFive(dims, cutoff = 3.0) {
+  const keys = ['E', 'A', 'C', 'N', 'O'];
+  const valid = keys.filter((k) => typeof dims?.[k] === 'number');
+  if (!valid.length) return null;
+
+  const levels = {};
+  for (const k of valid) levels[k] = dims[k] >= cutoff ? '高' : '低';
+
+  const ordered = [...valid].sort((a, b) => dims[b] - dims[a]);
+
+  return {
+    cutoff,
+    levels,
+    dominant: ordered[0],
+    dominantName: BIG5_NAMES[ordered[0]],
+    profile: ordered.join('-'),
+    profileName: ordered.map((k) => BIG5_NAMES[k]).join('>'),
+  };
+}
+
+/**
+ * 研究二分流：高神经质 → V-A；不高但低尽责 → V-B；其余随机 V-C / V-N（中性视频）。
  * 临界分是当场分流用的预设值，可改；真正的「上下 27%」等样本收齐后再复核。
  */
 export function assignGroup(dims, rand = Math.random) {

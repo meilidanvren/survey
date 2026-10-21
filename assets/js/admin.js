@@ -104,12 +104,12 @@ async function load() {
 function renderStats() {
   const done1 = records.length;
   const done2 = records.filter((r) => r.test2).length;
-  const typeCount = {};
+  const groupCount = {};
   records.forEach((r) => {
-    const name = r.test1?.typeName || r.test1?.type || '未知';
-    typeCount[name] = (typeCount[name] || 0) + 1;
+    const name = r.test1?.group || '未分组';
+    groupCount[name] = (groupCount[name] || 0) + 1;
   });
-  const typeLine = Object.entries(typeCount).map(([k, v]) => `${k} ${v}`).join(' / ') || '—';
+  const typeLine = Object.entries(groupCount).map(([k, v]) => `${k} ${v}`).join(' / ') || '—';
 
   const stats = qs('[data-el="stats"]');
   if (!stats) return;
@@ -117,7 +117,20 @@ function renderStats() {
     <div class="stat"><b>${done1}</b><span>完成一测</span></div>
     <div class="stat"><b>${done2}</b><span>完成二测</span></div>
     <div class="stat"><b>${done1 ? Math.round((done2 / done1) * 100) : 0}%</b><span>二测完成率</span></div>
-    <div class="stat"><b style="font-size:13px;line-height:1.5">${esc(typeLine)}</b><span>人格类型分布</span></div>`;
+    <div class="stat"><b style="font-size:13px;line-height:1.5">${esc(typeLine)}</b><span>分组分布</span></div>`;
+}
+
+function big5Cell(t1) {
+  const dims = t1.scores?.bfi || {};
+  const keys = ['E', 'A', 'C', 'N', 'O'];
+  if (!keys.some((k) => typeof dims[k] === 'number')) return '—';
+  const levels = t1.big5?.levels || {};
+  const body = keys
+    .filter((k) => typeof dims[k] === 'number')
+    .map((k) => `${k}${dims[k]}${levels[k] ? `(${levels[k]})` : ''}`)
+    .join(' ');
+  const dom = t1.big5?.dominantName;
+  return dom ? `${body} · 主导 ${dom}` : body;
 }
 
 function renderTable() {
@@ -132,13 +145,14 @@ function renderTable() {
     const t1 = r.test1 || {};
     const hasT2 = Boolean(r.test2);
     const video = t1.video?.ended ? '已看完' : (t1.video?.skipped ? '已跳过' : '—');
-    const aN = Object.keys(t1.answersA || {}).length;
+    const aN = Object.keys(t1.answers || {}).length;
     const bN = Object.keys(t1.answersB || {}).length;
-    const cN = Object.keys(r.test2?.answersC || {}).length;
+    const cN = Object.keys(r.test2?.answers || {}).length;
     const answerCell = `A${aN} / B${bN}${cN ? ` / C${cN}` : ''}`;
     return `<tr>
       <td class="mono">${esc(r.code)}${r.orphan ? ' <span class="badge wait">孤立</span>' : ''}</td>
-      <td>${esc(t1.typeName || t1.type || '—')}</td>
+      <td>${esc(t1.group || '—')}</td>
+      <td>${esc(big5Cell(t1))}</td>
       <td>${esc(fmtTime(r.createdAt))}</td>
       <td>${hasT2 ? '<span class="badge ok">已完成</span>' : '<span class="badge wait">未完成</span>'}</td>
       <td>${esc(video)}</td>
@@ -147,7 +161,7 @@ function renderTable() {
   }).join('');
 
   wrap.innerHTML = `<table class="data">
-    <thead><tr><th>编号</th><th>人格类型</th><th>一测存入时间</th><th>二测</th><th>视频</th><th>已存题数</th></tr></thead>
+    <thead><tr><th>编号</th><th>分组</th><th>大五判定</th><th>一测存入时间</th><th>二测</th><th>视频</th><th>已存题数</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
 }

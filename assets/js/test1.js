@@ -5,7 +5,7 @@ import { Quiz, esc } from './engine.js';
 import {
   answerLabels, scoreBFI, scoreCRT, scoreCSSTNFQ,
   scoreSTAI6, scoreCRTParallel, scoreManipulation,
-  codeDemo, scoreAttention, assignGroup, parseAnswerNumber,
+  codeDemo, scoreAttention, assignGroup, parseAnswerNumber, classifyBigFive,
 } from './scoring.js';
 import { generateUniqueCode } from './code.js';
 import { store, progress, driver } from './storage.js';
@@ -137,6 +137,7 @@ function maybeAssignGroup(answers) {
   if (!bfiIds.every((id) => answers?.[id] !== undefined)) return;
 
   const { dims } = scoreBFI(answers);
+  state.big5 = classifyBigFive(dims);
   state.group = assignGroup(dims);
   state.groupDims = dims;
   state.groupAssignedAt = nowISO();
@@ -153,6 +154,7 @@ function scoreAndAssign() {
     csstnfqT1: scoreCSSTNFQ(a),
   };
   state.attention = scoreAttention(bankA, a);
+  if (!state.big5) state.big5 = classifyBigFive(bfi.dims);
   if (!state.group) {
     state.group = assignGroup(bfi.dims);
     state.groupDims = bfi.dims;
@@ -286,6 +288,7 @@ function buildRecord() {
     createdAt: state.startedAt || nowISO(),
     finishedAt: state.finishedAt || nowISO(),
     group: state.group,
+    big5: state.big5 || null,
     groupDims: state.groupDims || null,
     groupAssignedAt: state.groupAssignedAt || null,
     answers: state.answers,
