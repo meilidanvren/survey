@@ -168,23 +168,6 @@ export const bankA = withFlat({
   sections: [SEC_DEMO, SEC_BFI, SEC_CRT, SEC_STAI, SEC_CSS],
 });
 
-/**
- * 视频后那份问卷。看过视频的人沿用「看完视频后」的措辞，
- * 无干预对照组没有视频，用中性说法，避免被试发现自己分到了对照组。
- */
-export function bankT2For(group) {
-  const intro = group === 'control'
-    ? '指导语：请根据你此刻的真实想法作答。'
-    : '指导语：请根据你刚才观看视频后的真实想法作答。';
-  return withFlat({
-    id: 'T2',
-    version: 'A-v2',
-    sections: [{ key: 't2', intro, pageSize: 10, questions: CSSTNFQ }],
-  });
-}
-
-export const bankT2 = bankT2For('V-A');
-
 export const bankT3 = withFlat({
   id: 'T3',
   version: 'A-v2',

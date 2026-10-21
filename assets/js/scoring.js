@@ -243,7 +243,8 @@ export function scoreAttention(bank, answers) {
   let passed = 0;
   let total = 0;
   for (const q of bank.questions || []) {
-    if (q.attention === undefined) continue;
+    // 只统计能自动判分的注意力题；A1 那种要对照视频内容的，单独记在 manip 里
+    if (typeof q.attention !== 'number') continue;
     total += 1;
     const ok = Number(answers?.[q.id]) === Number(q.attention);
     out[q.id] = ok;
@@ -262,5 +263,100 @@ export function scoreAttention(bank, answers) {
 export function assignGroup(dims, rand = Math.random) {
   if (dims?.N >= 3.5) return 'V-A';
   if (dims?.C <= 3.0) return 'V-B';
-  return rand() < 0.5 ? 'V-C' : 'control';
+  return rand() < 0.5 ? 'V-C' : 'V-N';
+}
+
+/* ---------------- 研究二（视频后） ---------------- */
+
+/** STAI-6：反向题 1、4、5（5−x），6 题求和，6–24 分。 */
+export function scoreSTAI6(answers) {
+  const REVERSE = new Set([1, 4, 5]);
+  let total = 0;
+  let n = 0;
+  const items = {};
+  for (let no = 1; no <= 6; no += 1) {
+    const raw = Number(answers?.[`S6${String(no).padStart(2, '0')}`]);
+    if (Number.isNaN(raw) || raw === 0) continue;
+    const v = REVERSE.has(no) ? 5 - raw : raw;
+    items[no] = v;
+    total += v;
+    n += 1;
+  }
+  return { total, answered: n, items };
+}
+
+/** 平行版 CRT-7：答案 1 元 / 3 分钟 / 19 次 / 3 天 / 23 名 / 20 元 / C。 */
+const CRT2_RULES = [
+  ['CRT21', (s, v) => v === 1],
+  ['CRT22', (s, v) => v === 3],
+  ['CRT23', (s, v) => v === 19],
+  ['CRT24', (s, v) => v === 3],
+  ['CRT25', (s, v) => v === 23],
+  ['CRT26', (s, v) => v === 20],
+];
+
+export function scoreCRTParallel(answers) {
+  const correct = {};
+  const normalized = {};
+  let total = 0;
+
+  for (const [id, rule] of CRT2_RULES) {
+    const raw = String(answers?.[id] ?? '').trim();
+    const v = parseAnswerNumber(raw);
+    normalized[id] = v;
+    const ok = v !== null && rule(raw, v);
+    correct[id] = ok;
+    if (ok) total += 1;
+  }
+
+  const last = Number(answers?.CRT27);
+  correct.CRT27 = last === 3;
+  normalized.CRT27 = Number.isNaN(last) ? null : last;
+  if (correct.CRT27) total += 1;
+
+  return { total, correct, normalized };
+}
+
+/**
+ * 操纵检验：四个维度取均值；A1 与内容回忆的正确答案随视频内容定，
+ * 未定之前只存原始作答，判分字段记 null。
+ */
+export function scoreManipulation(answers, opts = {}) {
+  const { a1CorrectColor = null, recallCorrect = {} } = opts;
+
+  const mean = (ids) => {
+    const vals = ids
+      .map((id) => Number(answers?.[id]))
+      .filter((v) => !Number.isNaN(v) && v !== 0);
+    return vals.length ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 1000) / 1000 : null;
+  };
+
+  const a1 = answers?.A1;
+  const a1Text = a1 === undefined ? null : ['蓝色', '红色', '绿色', '黄色'][Number(a1) - 1];
+  const recall = {};
+  let recallKnown = true;
+  let recallTotal = 0;
+  for (const id of ['C1', 'C2']) {
+    const raw = Number(answers?.[id]);
+    const want = recallCorrect[id];
+    if (want === undefined || want === null) {
+      recall[id] = null;
+      recallKnown = false;
+    } else {
+      const ok = raw === Number(want);
+      recall[id] = ok;
+      if (ok) recallTotal += 1;
+    }
+  }
+
+  return {
+    match: mean(['M1', 'M2', 'M3']),
+    loss: mean(['F1', 'F2']),
+    rule: mean(['F3', 'F4']),
+    reflect: mean(['H1', 'H2']),
+    credibility: Number(answers?.T1) || null,
+    aiSense: Number(answers?.T2) || null,
+    a1: { raw: a1 ?? null, text: a1Text, correct: a1CorrectColor ? a1Text === a1CorrectColor : null },
+    recall: { items: recall, total: recallKnown ? recallTotal : null, judged: recallKnown },
+  };
 }

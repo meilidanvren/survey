@@ -1,8 +1,10 @@
 import { CONFIG } from './config.js';
-import { bankA, bankT2For } from './surveyA.js';
+import { bankA } from './surveyA.js';
+import { bankBFor, A1_CORRECT_COLOR } from './surveyB.js';
 import { Quiz, esc } from './engine.js';
 import {
   answerLabels, scoreBFI, scoreCRT, scoreSTAI, scoreCSSTNFQ,
+  scoreSTAI6, scoreCRTParallel, scoreManipulation,
   codeDemo, scoreAttention, assignGroup, parseAnswerNumber,
 } from './scoring.js';
 import { generateUniqueCode } from './code.js';
@@ -18,6 +20,7 @@ const VIDEO_BY_GROUP = {
   'V-A': { title: '请观看下面这段视频', src: 'assets/videos/video-1.mp4' },
   'V-B': { title: '请观看下面这段视频', src: 'assets/videos/video-2.mp4' },
   'V-C': { title: '请观看下面这段视频', src: 'assets/videos/video-3.mp4' },
+  'V-N': { title: '请观看下面这段视频', src: 'assets/videos/video-4.mp4' },
 };
 
 function makeId() {
@@ -37,9 +40,9 @@ function makeState() {
     attention: null,
     group: null,
     video: null,
-    answersT2: {},
-    answerSecondsT2: {},
-    pageT2: 0,
+    answersB: {},
+    answerSecondsB: {},
+    pageB: 0,
     timings: {},
     submissionId: null,
     code: null,
@@ -56,7 +59,7 @@ function render() {
   switch (state.step) {
     case 'survey': return renderSurvey();
     case 'video': return renderVideo();
-    case 't2': return renderT2();
+    case 't2': return renderSurveyB();
     case 'code': return renderCode();
     default: return renderIntro();
   }
@@ -114,13 +117,8 @@ function renderSurvey() {
       state.answers = answers;
       state.timings.surveyFinishedAt = nowISO();
       scoreAndAssign();
-      const video = VIDEO_BY_GROUP[state.group];
-      if (video) {
-        state.timings.videoStartedAt = nowISO();
-        state.step = 'video';
-      } else {
-        state.step = 't2';
-      }
+      state.timings.videoStartedAt = nowISO();
+      state.step = 'video';
       save();
       render();
     },
@@ -245,29 +243,33 @@ function handleVideoError() {
   }
 }
 
-/* ---------------- 步骤 3：视频后再填一份（T2） ---------------- */
+/* ---------------- 步骤 3：视频后四份问卷（题库B） ---------------- */
 
-function renderT2() {
-  const t2Bank = bankT2For(state.group);
+function renderSurveyB() {
+  const bBank = bankBFor(state.group);
   app.innerHTML = `
   <section class="card">
     <div id="quiz"></div>
   </section>`;
 
   new Quiz({
-    bank: t2Bank,
+    bank: bBank,
     container: qs('#quiz'),
-    answers: state.answersT2,
-    answerSeconds: state.answerSecondsT2,
-    page: state.pageT2,
-    pageSize: t2Bank.pageSize || 8,
-    onChange: (answers) => { state.answersT2 = answers; save(); },
-    onTiming: (seconds) => { state.answerSecondsT2 = seconds; save(); },
-    onPage: (page) => { state.pageT2 = page; save(); },
+    answers: state.answersB,
+    answerSeconds: state.answerSecondsB,
+    page: state.pageB,
+    pageSize: bBank.pageSize || 8,
+    onChange: (answers) => { state.answersB = answers; save(); },
+    onTiming: (seconds) => { state.answerSecondsB = seconds; save(); },
+    onPage: (page) => { state.pageB = page; save(); },
     onComplete: (answers) => {
-      state.answersT2 = answers;
+      state.answersB = answers;
+      state.scores.manip = scoreManipulation(answers, { a1CorrectColor: A1_CORRECT_COLOR });
+      state.scores.stai6 = scoreSTAI6(answers);
+      state.scores.crt2 = scoreCRTParallel(answers);
       state.scores.csstnfqT2 = scoreCSSTNFQ(answers);
-      state.timings.t2FinishedAt = nowISO();
+      state.attentionB = scoreAttention(bBank, answers);
+      state.timings.bankBFinishedAt = nowISO();
       save();
       finishTest();
     },
@@ -277,7 +279,7 @@ function renderT2() {
 /* ---------------- 提交 ---------------- */
 
 function buildRecord() {
-  const t2Bank = bankT2For(state.group);
+  const bBank = bankBFor(state.group);
   return {
     submissionId: state.submissionId,
     code: state.code,
@@ -289,15 +291,16 @@ function buildRecord() {
     answers: state.answers,
     answerText: answerLabels(bankA, state.answers),
     answerSeconds: state.answerSeconds,
-    answersT2: state.answersT2,
-    answerTextT2: answerLabels(t2Bank, state.answersT2),
-    answerSecondsT2: state.answerSecondsT2,
+    answersB: state.answersB,
+    answerTextB: answerLabels(bBank, state.answersB),
+    answerSecondsB: state.answerSecondsB,
     scores: state.scores,
     attention: state.attention,
+    attentionB: state.attentionB || null,
     ageInput: state.answers?.D2 ?? null,
     age: parseAnswerNumber(state.answers?.D2),
     video: state.video,
-    bankVersion: bankA.version,
+    bankVersion: { A: bankA.version, B: bBank.version },
     timings: state.timings,
     meta: {
       ua: navigator.userAgent,
