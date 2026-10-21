@@ -3,7 +3,7 @@ import { bankA } from './surveyA.js';
 import { bankBFor, A1_CORRECT_COLOR } from './surveyB.js';
 import { Quiz, esc } from './engine.js';
 import {
-  answerLabels, scoreBFI, scoreCRT, scoreSTAI, scoreCSSTNFQ,
+  answerLabels, scoreBFI, scoreCRT, scoreCSSTNFQ,
   scoreSTAI6, scoreCRTParallel, scoreManipulation,
   codeDemo, scoreAttention, assignGroup, parseAnswerNumber,
 } from './scoring.js';
@@ -149,7 +149,7 @@ function scoreAndAssign() {
     bfi: bfi.dims,
     demo: codeDemo(a),
     crt: scoreCRT(a),
-    stai: scoreSTAI(a),
+    stai6T1: scoreSTAI6(a),
     csstnfqT1: scoreCSSTNFQ(a),
   };
   state.attention = scoreAttention(bankA, a);
@@ -265,7 +265,7 @@ function renderSurveyB() {
     onComplete: (answers) => {
       state.answersB = answers;
       state.scores.manip = scoreManipulation(answers, { a1CorrectColor: A1_CORRECT_COLOR });
-      state.scores.stai6 = scoreSTAI6(answers);
+      state.scores.stai6T2 = scoreSTAI6(answers);
       state.scores.crt2 = scoreCRTParallel(answers);
       state.scores.csstnfqT2 = scoreCSSTNFQ(answers);
       state.attentionB = scoreAttention(bBank, answers);

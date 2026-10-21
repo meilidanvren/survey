@@ -182,23 +182,6 @@ export function scoreCRT(answers) {
   return { total, correct, normalized };
 }
 
-/** STAI-S：10 题反向（5−x），20 题求和，20–80 分。 */
-export function scoreSTAI(answers) {
-  const REVERSE = new Set([1, 2, 5, 8, 10, 11, 15, 16, 19, 20]);
-  let total = 0;
-  let n = 0;
-  const items = {};
-  for (let no = 1; no <= 20; no += 1) {
-    const raw = Number(answers?.[`STAI${String(no).padStart(2, '0')}`]);
-    if (Number.isNaN(raw) || raw === 0) continue;
-    const v = REVERSE.has(no) ? 5 - raw : raw;
-    items[no] = v;
-    total += v;
-    n += 1;
-  }
-  return { total, answered: n, items };
-}
-
 /** CSSTNFQ：23–25 反向（6−x），25 题求和，25–125 分。 */
 export function scoreCSSTNFQ(answers) {
   const REVERSE = new Set([23, 24, 25]);
