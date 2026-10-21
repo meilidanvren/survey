@@ -103,7 +103,11 @@ function renderSurvey() {
     answerSeconds: state.answerSeconds,
     page: state.page,
     pageSize: bankA.pageSize,
-    onChange: (answers) => { state.answers = answers; save(); },
+    onChange: (answers) => {
+      state.answers = answers;
+      maybeAssignGroup(answers);
+      save();
+    },
     onTiming: (seconds) => { state.answerSeconds = seconds; save(); },
     onPage: (page) => { state.page = page; save(); },
     onComplete: (answers) => {
@@ -123,6 +127,23 @@ function renderSurvey() {
   });
 }
 
+/**
+ * BFI 一答完就分流，不等整份问卷结束 —— 人口学及其后的问卷都不参与分组。
+ * 只分一次：被试回头改 BFI 答案也不会重分。
+ */
+function maybeAssignGroup(answers) {
+  if (state.group) return;
+
+  const bfiSection = bankA.sections.find((s) => s.key === 'bfi');
+  const bfiIds = bfiSection.questions.filter((q) => q.id.startsWith('BFI')).map((q) => q.id);
+  if (!bfiIds.every((id) => answers?.[id] !== undefined)) return;
+
+  const { dims } = scoreBFI(answers);
+  state.group = assignGroup(dims);
+  state.groupDims = dims;
+  state.groupAssignedAt = nowISO();
+}
+
 function scoreAndAssign() {
   const a = state.answers;
   const bfi = scoreBFI(a);
@@ -134,7 +155,11 @@ function scoreAndAssign() {
     csstnfqT1: scoreCSSTNFQ(a),
   };
   state.attention = scoreAttention(bankA, a);
-  state.group = state.group || assignGroup(bfi.dims);
+  if (!state.group) {
+    state.group = assignGroup(bfi.dims);
+    state.groupDims = bfi.dims;
+    state.groupAssignedAt = nowISO();
+  }
 }
 
 /* ---------------- 步骤 2：视频（对照组跳过） ---------------- */
@@ -259,6 +284,8 @@ function buildRecord() {
     createdAt: state.startedAt || nowISO(),
     finishedAt: state.finishedAt || nowISO(),
     group: state.group,
+    groupDims: state.groupDims || null,
+    groupAssignedAt: state.groupAssignedAt || null,
     answers: state.answers,
     answerText: answerLabels(bankA, state.answers),
     answerSeconds: state.answerSeconds,
