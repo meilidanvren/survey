@@ -26,12 +26,31 @@ export class Quiz {
     this.answerSeconds = { ...(opts.answerSeconds || {}) };
     this.shownAt = {};
     this.pageSize = opts.pageSize || bank.pageSize || 8;
+    this.sections = bank.sections?.length
+      ? bank.sections
+      : [{ key: bank.id || 'all', intro: '', questions: bank.questions || [] }];
 
+    // 每套问卷独立分页：另起一页，题号在本套内从 1 开始
     this.pages = [];
-    for (let i = 0; i < bank.questions.length; i += this.pageSize) {
-      this.pages.push(bank.questions.slice(i, i + this.pageSize));
+    this.sections.forEach((section, sectionIndex) => {
+      const size = section.pageSize || this.pageSize;
+      const questions = section.questions || [];
+      for (let i = 0; i < questions.length; i += size) {
+        this.pages.push({
+          section,
+          sectionIndex,
+          questions: questions.slice(i, i + size),
+          offset: i,
+          isSectionStart: i === 0,
+        });
+      }
+    });
+    if (!this.pages.length) {
+      this.pages.push({
+        section: this.sections[0], sectionIndex: 0, questions: [], offset: 0, isSectionStart: true,
+      });
     }
-    if (!this.pages.length) this.pages.push([]);
+    this.allQuestions = this.pages.flatMap((page) => page.questions);
 
     this.page = Math.min(Math.max(0, opts.page || 0), this.pages.length - 1);
     this.onChange = opts.onChange || (() => {});
@@ -54,7 +73,7 @@ export class Quiz {
   }
 
   answeredCount() {
-    return this.bank.questions.filter((q) => this.isAnswered(q)).length;
+    return this.allQuestions.filter((q) => this.isAnswered(q)).length;
   }
 
   handleChange(e) {
@@ -62,7 +81,7 @@ export class Quiz {
     if (!input || !this.container.contains(input)) return;
 
     const qid = input.dataset.qid;
-    const q = this.bank.questions.find((x) => x.id === qid);
+    const q = this.allQuestions.find((x) => x.id === qid);
     if (!q) return;
 
     if (q.multiple) {
@@ -95,7 +114,7 @@ export class Quiz {
   }
 
   next() {
-    const missing = this.pages[this.page].filter((q) => !this.isAnswered(q));
+    const missing = this.pages[this.page].questions.filter((q) => !this.isAnswered(q));
     if (missing.length) {
       missing.forEach((q) => this.markMissing(q.id));
       this.showAlert(`还有 ${missing.length} 题没有作答，请补充后再继续。`);
@@ -147,7 +166,7 @@ export class Quiz {
   }
 
   updateMeta() {
-    const total = this.bank.questions.length;
+    const total = this.allQuestions.length;
     const answered = this.answeredCount();
     const count = this.container.querySelector('[data-el="count"]');
     const bar = this.container.querySelector('[data-el="bar"]');
@@ -155,16 +174,14 @@ export class Quiz {
     if (bar) bar.style.width = `${total ? (answered / total) * 100 : 0}%`;
   }
 
-  renderQuestion(q, indexOnPage) {
-    const num = this.page * this.pageSize + indexOnPage + 1;
+  renderQuestion(q, indexOnPage, offset = 0) {
+    const num = offset + indexOnPage + 1;
     const cur = this.answers[q.id];
-    const note = q.note ? `<p class="q-intro">${esc(q.note)}</p>` : '';
     const legend = `<legend><span class="q-num">${num}.</span>${esc(q.text)}</legend>`;
 
     if (q.type === 'text') {
       const val = typeof cur === 'string' ? cur : '';
       return `<fieldset class="q" data-qid="${esc(q.id)}">
-        ${note}
         ${legend}
         <input class="text-answer" type="text" data-qid="${esc(q.id)}" value="${esc(val)}"
           placeholder="${esc(q.placeholder || '在此填写答案')}" autocomplete="off">
@@ -190,15 +207,18 @@ export class Quiz {
     }).join('');
 
     return `<fieldset class="q" data-qid="${esc(q.id)}">
-      ${note}
       <legend><span class="q-num">${num}.</span>${esc(q.text)}${isMulti ? '<span class="q-tag">多选</span>' : ''}</legend>
       <div class="opts ${opts.length > 5 ? 'opts-long' : ''}">${items}</div>
     </fieldset>`;
   }
 
   render(isMount = false) {
-    const pageQs = this.pages[this.page];
+    const page = this.pages[this.page];
+    const pageQs = page.questions;
     const last = this.page === this.pages.length - 1;
+    const intro = page.isSectionStart && page.section?.intro
+      ? `<div class="sec-head"><p class="sec-intro">${esc(page.section.intro)}</p></div>`
+      : '';
 
     this.container.innerHTML = `<div class="quiz">
       <div class="quiz-meta">
@@ -207,7 +227,8 @@ export class Quiz {
       </div>
       <div class="progress"><span data-el="bar"></span></div>
       <form class="quiz-form" novalidate>
-        ${pageQs.map((q, i) => this.renderQuestion(q, i)).join('')}
+        ${intro}
+        ${pageQs.map((q, i) => this.renderQuestion(q, i, page.offset)).join('')}
       </form>
       <div class="alert" data-el="alert" hidden></div>
       <div class="nav">

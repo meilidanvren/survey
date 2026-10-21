@@ -526,17 +526,21 @@ table.data tr:last-child td { border-bottom: 0; }
   * { transition: none !important; animation: none !important; }
 }
 
-/* 研究一：分段指导语与文本作答题 */
-.q-intro {
-  margin: 0 0 14px;
-  padding: 12px 14px;
-  background: #f4f7fa;
-  border-left: 3px solid #9fb6c9;
-  border-radius: 6px;
-  font-size: 14px;
-  line-height: 1.75;
-  color: #33475b;
+/* 研究一：每套问卷的指导语作为独立标题块，与题目分开 */
+.sec-head {
+  margin: 2px 0 20px;
+  padding: 16px 18px;
+  background: #f2f6fa;
+  border-left: 4px solid #8fadc4;
+  border-radius: 8px;
 }
+.sec-intro {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.85;
+  color: #2f4457;
+}
+.sec-head + .q { border-top: 0; padding-top: 0; }
 .text-answer {
   width: 100%;
   margin-top: 4px;
