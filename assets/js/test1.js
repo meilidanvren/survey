@@ -1,5 +1,5 @@
 import { CONFIG } from './config.js';
-import { bankA, bankT2 } from './surveyA.js';
+import { bankA, bankT2For } from './surveyA.js';
 import { Quiz, esc } from './engine.js';
 import {
   answerLabels, scoreBFI, scoreCRT, scoreSTAI, scoreCSSTNFQ,
@@ -223,18 +223,19 @@ function handleVideoError() {
 /* ---------------- 步骤 3：视频后再填一份（T2） ---------------- */
 
 function renderT2() {
+  const t2Bank = bankT2For(state.group);
   app.innerHTML = `
   <section class="card">
     <div id="quiz"></div>
   </section>`;
 
   new Quiz({
-    bank: bankT2,
+    bank: t2Bank,
     container: qs('#quiz'),
     answers: state.answersT2,
     answerSeconds: state.answerSecondsT2,
     page: state.pageT2,
-    pageSize: bankT2.pageSize || 8,
+    pageSize: t2Bank.pageSize || 8,
     onChange: (answers) => { state.answersT2 = answers; save(); },
     onTiming: (seconds) => { state.answerSecondsT2 = seconds; save(); },
     onPage: (page) => { state.pageT2 = page; save(); },
@@ -251,6 +252,7 @@ function renderT2() {
 /* ---------------- 提交 ---------------- */
 
 function buildRecord() {
+  const t2Bank = bankT2For(state.group);
   return {
     submissionId: state.submissionId,
     code: state.code,
@@ -261,7 +263,7 @@ function buildRecord() {
     answerText: answerLabels(bankA, state.answers),
     answerSeconds: state.answerSeconds,
     answersT2: state.answersT2,
-    answerTextT2: answerLabels(bankT2, state.answersT2),
+    answerTextT2: answerLabels(t2Bank, state.answersT2),
     answerSecondsT2: state.answerSecondsT2,
     scores: state.scores,
     attention: state.attention,

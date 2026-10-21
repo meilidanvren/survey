@@ -130,14 +130,23 @@ export const bankA = {
 
 const CSSTNFQ = bankA.questions.filter((x) => x.id.startsWith('CS'));
 
-export const bankT2 = {
-  id: 'T2',
-  version: 'A-v2',
-  questions: CSSTNFQ.map((x) => ({
-    ...x,
-    note: '指导语：请根据你刚才观看视频后的真实想法作答。',
-  })),
-};
+const T2_INTRO_VIDEO = '指导语：请根据你刚才观看视频后的真实想法作答。';
+const T2_INTRO_NEUTRAL = '指导语：请根据你此刻的真实想法作答。';
+
+/**
+ * 视频后那份问卷。看过视频的人沿用「看完视频后」的措辞，
+ * 无干预对照组没有视频，用中性说法，避免被试发现自己分到了对照组。
+ */
+export function bankT2For(group) {
+  const note = group === 'control' ? T2_INTRO_NEUTRAL : T2_INTRO_VIDEO;
+  return {
+    id: 'T2',
+    version: 'A-v2',
+    questions: CSSTNFQ.map((x) => ({ ...x, note })),
+  };
+}
+
+export const bankT2 = bankT2For('V-A');
 
 export const bankT3 = {
   id: 'T3',
