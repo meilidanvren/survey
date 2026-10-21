@@ -165,7 +165,7 @@ const withFlat = (bank) => {
 export const bankA = withFlat({
   id: 'A',
   version: 'A-v2',
-  sections: [SEC_BFI, SEC_DEMO, SEC_CRT, SEC_STAI, SEC_CSS],
+  sections: [SEC_DEMO, SEC_BFI, SEC_CRT, SEC_STAI, SEC_CSS],
 });
 
 /**
