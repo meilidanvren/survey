@@ -1,7 +1,7 @@
 import { CONFIG } from './config.js';
-import { bankT3 } from './surveyA.js';
+import { bankC, DEBRIEF } from './surveyC.js';
 import { Quiz, esc } from './engine.js';
-import { answerLabels, scoreCSSTNFQ } from './scoring.js';
+import { answerLabels, scoreCSSTNFQ, scoreAttention } from './scoring.js';
 import { normalizeCode, isValidFormat } from './code.js';
 import { store, progress, driver, formatWait } from './storage.js';
 
@@ -161,12 +161,12 @@ function renderBankC() {
   </section>`;
 
   new Quiz({
-    bank: bankT3,
+    bank: bankC,
     container: qs('#quiz'),
     answers: state.answersC,
     answerSeconds: state.answerSecondsC,
     page: state.pageC,
-    pageSize: bankT3.pageSize || 8,
+    pageSize: bankC.pageSize || 8,
     onChange: (answers) => { state.answersC = answers; save(); },
     onTiming: (seconds) => { state.answerSecondsC = seconds; save(); },
     onPage: (page) => { state.pageC = page; save(); },
@@ -191,10 +191,11 @@ async function submitC() {
     startedAt: state.startedAt,
     finishedAt,
     answers: state.answersC,
-    answerText: answerLabels(bankT3, state.answersC),
+    answerText: answerLabels(bankC, state.answersC),
     answerSeconds: state.answerSecondsC,
     scores: { csstnfqT3: scoreCSSTNFQ(state.answersC) },
-    bankVersion: bankT3.version,
+    attention: scoreAttention(bankC, state.answersC),
+    bankVersion: bankC.version,
     meta: {
       ua: navigator.userAgent,
       screen: `${screen.width}x${screen.height}`,
@@ -258,6 +259,10 @@ function renderDone() {
     <div class="done-mark">✓</div>
     <h2>全部完成，感谢你的参与</h2>
     <p class="muted">你的编号是：<b class="mono">${esc(state.code)}</b><br>本次作答已记录。</p>
+    <div class="debrief">
+      <h3>事后解说</h3>
+      <p>${esc(DEBRIEF)}</p>
+    </div>
     <p class="hint">你可以关闭本页面了。如有疑问，请联系主试。</p>
     <button class="btn btn-ghost" data-act="leave">完成</button>
   </section>`;

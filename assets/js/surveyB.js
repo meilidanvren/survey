@@ -12,8 +12,8 @@ const OPTS7 = L7.map((text) => ({ text }));
 const OPTS5 = L5.map((text) => ({ text }));
 const OPTS4 = L4.map((text) => ({ text }));
 
-/** A1 的正确颜色：四组统一，具体哪一色待定（定下来填 '蓝色'/'红色'/'绿色'/'黄色'）。 */
-export const A1_CORRECT_COLOR = null;
+/** A1 的正确颜色：四组统一，按《题库C》汇总表定为「蓝色」。 */
+export const A1_CORRECT_COLOR = '蓝色';
 
 const MANIP_INTRO = '指导语：下面几条是关于刚才那段视频的问题，请根据你的真实感受选择。';
 const STAI6_INTRO = '指导语：请根据你此刻的真实感觉作答。';

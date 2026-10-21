@@ -556,3 +556,15 @@ table.data tr:last-child td { border-bottom: 0; }
   box-shadow: 0 0 0 3px rgba(91, 141, 184, .15);
 }
 .opts-long { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+
+/* 二测完成页的事后解说 */
+.debrief {
+  margin: 22px 0 6px;
+  padding: 16px 18px;
+  background: #f7f8fa;
+  border: 1px solid #e3e7ec;
+  border-radius: 10px;
+  text-align: left;
+}
+.debrief h3 { margin: 0 0 8px; font-size: 15px; color: #33475b; }
+.debrief p { margin: 0; font-size: 13.5px; line-height: 1.9; color: #4a5b6b; }

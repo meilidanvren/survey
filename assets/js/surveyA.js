@@ -153,14 +153,3 @@ export const bankA = withFlat({
   version: 'A-v2',
   sections: [SEC_DEMO, SEC_BFI, SEC_CRT, SEC_STAI, SEC_CSS],
 });
-
-export const bankT3 = withFlat({
-  id: 'T3',
-  version: 'A-v2',
-  sections: [{
-    key: 't3',
-    intro: '指导语：请根据你这一周以来的真实情况作答。',
-    pageSize: 10,
-    questions: CSSTNFQ,
-  }],
-});
